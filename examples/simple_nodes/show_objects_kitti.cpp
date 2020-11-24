@@ -1,17 +1,22 @@
-// Copyright (C) 2017  I. Bogoslavskyi, C. Stachniss, University of Bonn
-
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU General Public License as published by the Free
-// Software Foundation, either version 3 of the License, or (at your option)
-// any later version.
-
-// This program is distributed in the hope that it will be useful, but WITHOUT
-// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-// FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-// more details.
-
-// You should have received a copy of the GNU General Public License along
-// with this program.  If not, see <http://www.gnu.org/licenses/>.
+// Copyright (C) 2020  I. Bogoslavskyi, C. Stachniss
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the "Software"),
+// to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense,
+// and/or sell copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+// DEALINGS IN THE SOFTWARE.
 
 #include <stdio.h>
 
@@ -25,12 +30,13 @@
 
 #include "ground_removal/depth_ground_remover.h"
 #include "projections/projection_params.h"
+#include "qt/drawables/drawable_cloud.h"
+#include "qt/drawables/object_painter.h"
 #include "utils/cloud.h"
 #include "utils/folder_reader.h"
 #include "utils/radians.h"
 #include "utils/timer.h"
 #include "utils/velodyne_utils.h"
-#include "visualization/visualizer.h"
 
 #include "tclap/CmdLine.h"
 
@@ -39,7 +45,7 @@ using std::string;
 using namespace depth_clustering;
 
 void ReadData(const Radians& angle_tollerance, const string& in_path,
-              Visualizer* visualizer) {
+              Viewer* visualizer) {
   // delay reading for one second to allow GUI to load
   std::this_thread::sleep_for(std::chrono::milliseconds(500));
   // now load the data
@@ -63,8 +69,11 @@ void ReadData(const Radians& angle_tollerance, const string& in_path,
       angle_tollerance, min_cluster_size, max_cluster_size);
   clusterer.SetDiffType(DiffFactory::DiffType::ANGLES);
 
+  ObjectPainter object_painter{visualizer,
+                               ObjectPainter::OutlineType::kPolygon3d};
+
   depth_ground_remover.AddClient(&clusterer);
-  clusterer.AddClient(visualizer->object_clouds_client());
+  clusterer.AddClient(&object_painter);
 
   fprintf(stderr, "INFO: everything initialized\n");
 
@@ -72,7 +81,8 @@ void ReadData(const Radians& angle_tollerance, const string& in_path,
     time_utils::Timer timer;
     auto cloud = ReadKittiCloud(path);
     cloud->InitProjection(*proj_params_ptr);
-    visualizer->OnNewObjectReceived(*cloud, 0);
+    visualizer->Clear();
+    visualizer->AddDrawable(DrawableCloud::FromCloud(cloud));
     depth_ground_remover.OnNewObjectReceived(*cloud, 0);
 
     uint max_wait_time = 100;
@@ -108,7 +118,7 @@ int main(int argc, char* argv[]) {
 
   QApplication application(argc, argv);
   // visualizer should be created from a gui thread
-  Visualizer visualizer;
+  Viewer visualizer;
   visualizer.show();
 
   // create and run loader thread

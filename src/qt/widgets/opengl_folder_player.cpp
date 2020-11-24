@@ -1,6 +1,22 @@
-// Copyright Igor Bogoslavskyi, year 2017.
-// In case of any problems with the code please contact me.
-// Email: igor.bogoslavskyi@uni-bonn.de.
+// Copyright (C) 2020  I. Bogoslavskyi, C. Stachniss
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the "Software"),
+// to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense,
+// and/or sell copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+// DEALINGS IN THE SOFTWARE.
 
 #include "./opengl_folder_player.h"
 
@@ -11,39 +27,42 @@
 #include <QPixmap>
 #include <QUuid>
 
-#include <pcl/io/pcd_io.h>
-#include <pcl/point_cloud.h>
-
 #include <utils/folder_reader.h>
 #include <utils/timer.h>
 #include <utils/velodyne_utils.h>
-#include <visualization/visualizer.h>
+
+#if PCL_FOUND
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_cloud.h>
+#endif  // PCL_FOUND
 
 #include <vector>
 
 #include "qt/drawables/drawable_cloud.h"
 #include "qt/drawables/drawable_cube.h"
+#include "qt/drawables/object_painter.h"
 #include "qt/utils/utils.h"
 
 #include "qt/widgets/ui_opengl_folder_player.h"
 
 #include "image_labelers/diff_helpers/diff_factory.h"
 
-using std::vector;
-using depth_clustering::Cloud;
-using depth_clustering::ProjectionParams;
-using depth_clustering::FolderReader;
-using depth_clustering::ReadKittiCloudTxt;
-using depth_clustering::ReadKittiCloud;
-using depth_clustering::MatFromDepthPng;
-using depth_clustering::Radians;
-using depth_clustering::DepthGroundRemover;
-using depth_clustering::ImageBasedClusterer;
-using depth_clustering::LinearImageLabeler;
 using depth_clustering::AbstractImageLabeler;
 using depth_clustering::AngleDiffPrecomputed;
+using depth_clustering::Cloud;
+using depth_clustering::DepthGroundRemover;
 using depth_clustering::DiffFactory;
+using depth_clustering::FolderReader;
+using depth_clustering::ImageBasedClusterer;
+using depth_clustering::LinearImageLabeler;
+using depth_clustering::MatFromDepthPng;
+using depth_clustering::ObjectPainter;
+using depth_clustering::ProjectionParams;
+using depth_clustering::Radians;
+using depth_clustering::ReadKittiCloud;
+using depth_clustering::ReadKittiCloudTxt;
 using depth_clustering::time_utils::Timer;
+using std::vector;
 
 OpenGlFolderPlayer::OpenGlFolderPlayer(QWidget *parent)
     : BaseViewerWidget(parent), ui(new Ui::OpenGlFolderPlayer) {
@@ -95,7 +114,8 @@ OpenGlFolderPlayer::OpenGlFolderPlayer(QWidget *parent)
   ui->gfx_labels->setRenderHints(QPainter::Antialiasing |
                                  QPainter::SmoothPixmapTransform);
 
-  _painter.reset(new ObjectPainter(_viewer));
+  _painter.reset(
+      new ObjectPainter{_viewer, ObjectPainter::OutlineType::kPolygon3d});
   this->onSegmentationParamUpdate();
 }
 
@@ -109,8 +129,7 @@ void OpenGlFolderPlayer::onPlayAllClouds() {
   qDebug() << "All clouds shown!";
 }
 
-void OpenGlFolderPlayer::OnNewObjectReceived(const cv::Mat &image,
-                                             int client_id) {
+void OpenGlFolderPlayer::OnNewObjectReceived(const cv::Mat &image, int) {
   QImage qimage;
   fprintf(stderr, "[INFO] Received Mat with type: %d\n", image.type());
   switch (image.type()) {

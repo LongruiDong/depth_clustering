@@ -1,11 +1,11 @@
-// Copyright Igor Bogoslavskyi, year 2017.
-// In case of any problems with the code please contact me.
-// Email: igor.bogoslavskyi@uni-bonn.de.
+// Copyright (C) 2020  I. Bogoslavskyi, C. Stachniss
+//
+// GNU-GPL licence that follows one of libQGLViewer.
 
 #include "./viewer.h"
 
-using std::mutex;
 using std::lock_guard;
+using std::mutex;
 
 void Viewer::AddDrawable(Drawable::Ptr drawable) {
   lock_guard<mutex> guard(_cloud_mutex);
